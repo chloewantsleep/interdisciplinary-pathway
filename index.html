@@ -116,9 +116,9 @@
   #me-view { position:absolute; inset:0; display:none; padding-top:58px; }
   #cv-frame { width:100%; height:100%; border:none; display:block; }
   .you { color:var(--red); font-weight:700; }
+  .desc { flex:0 0 auto; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; line-height:1.55; margin-top:4px; color:#888; }
   .clink { float:right; color:var(--ink); font-weight:700; font-size:10px; text-decoration:none; border-bottom:1px solid var(--ink); }
   .clink:hover { color:var(--red); border-color:var(--red); }
-  #status { position:fixed; left:20px; bottom:20px; font-size:8.5px; letter-spacing:0.18em; text-transform:uppercase; color:var(--faint); z-index:150; max-width:60vw; }
 
   @media (max-width:640px) {
     #bar { padding:12px 16px; gap:8px; }
@@ -127,7 +127,6 @@
     #deck-view { padding-top:96px; }
     #stack { height:min(520px, calc(100vh - 230px)); }
     #matrix { left:16px; right:16px; bottom:16px; max-height:36vh; }
-    #status { display:none; }
   }
 </style>
 </head>
@@ -135,18 +134,7 @@
 
 <div id="bar">
   <div class="brand">Leanings</div>
-  <div class="f-row">
-    <select class="f-sel" id="mode">
-      <option value="topic">By topic</option>
-      <option value="name">By name</option>
-    </select>
-    <input class="f-in" id="q" placeholder="e.g. computational design" value="computational design">
-    <button class="f-btn" id="go">Load</button>
-  </div>
-  <div class="f-row">
-    <label>OpenAlex key</label>
-    <input class="f-in" id="key" type="password" placeholder="optional — live data" style="width:130px">
-  </div>
+  <button class="f-btn" id="shuffle" title="Draw 50 new random courses">Shuffle</button>
   <div class="tabs">
     <button class="f-btn on" id="tab-deck">Deck</button>
     <button class="f-btn" id="tab-saved">Saved (0)</button>
@@ -161,19 +149,17 @@
     <button class="act small" id="btn-undo" title="Undo (⌫)"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" style="display:block;margin:auto"><path d="M3.5 4.5H8a2.5 2.5 0 010 5H5" stroke="currentColor" stroke-width="0.9"/><path d="M5.5 2.5l-2 2 2 2" stroke="currentColor" stroke-width="0.9"/></svg></button>
     <button class="act" id="btn-save" title="Save (→)">SAVE</button>
   </div>
-  <div class="hint">swipe · ← pass · → save</div>
 </div>
 
 <div id="saved-view">
   <svg id="graph"></svg>
   <div id="matrix"></div>
-  <div id="saved-empty">Nothing saved yet — swipe right on a scholar.</div>
+  <div id="saved-empty">Nothing saved yet — swipe right on a course.</div>
 </div>
 
 <div id="me-view"><iframe id="cv-frame" title="Example knowledge graph" data-src="chloeverse/index.html"></iframe></div>
 
 <div id="tooltip"><div class="t-name" id="tt-name"></div><div id="tt-body"></div></div>
-<div id="status"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
 <script src="chloeverse/data.js"></script>
@@ -186,7 +172,7 @@ const P = {
   recentYears: 3,        // "current lean" window
   swipeThreshold: 110,   // px drag to commit
   minWorks: 6,           // skip scholars with fewer topic-tagged works
-  deckSize: 24,          // authors per query
+  deckSize: 50,          // courses per deck (drawn at random from data/courses.json)
   linkMinShare: 0.12,    // constellation: link scholar→discipline above this share
   centroidPull: 0.72,    // how far the scholar dot travels toward its lean (0–1)
 };
@@ -206,24 +192,6 @@ const DISCS = [
 ];
 const DK = DISCS.map(d=>d.key);
 
-// OpenAlex topic → discipline. Subfield rules win over field rules; everything else → Science.
-const SUB_RULES = [
-  [/Architecture|Urban Studies|Geography, Planning|Building and Construction/i, 'arch'],
-  [/Human-Computer Interaction|Computer Graphics|Media Technology/i, 'design'],
-  [/Visual Arts|Music|Conservation/i, 'art'],
-];
-const FIELD_RULES = [
-  [/Arts and Humanities/i, 'hum'],
-  [/Social Sciences|Psychology|Economics|Business|Decision Sciences/i, 'soc'],
-  [/Computer Science/i, 'cs'],
-  [/Engineering|Materials Science|Energy/i, 'eng'],
-];
-function mapTopic(t){
-  const sub = t.subfield?.display_name || '', field = t.field?.display_name || '';
-  for (const [re,k] of SUB_RULES) if (re.test(sub)) return k;
-  for (const [re,k] of FIELD_RULES) if (re.test(field)) return k;
-  return 'sci';
-}
 
 /* ════════════════════════════════════════════════════════════
    PROFILE MODEL
@@ -254,33 +222,17 @@ function buildProfile(works){
 }
 
 /* ════════════════════════════════════════════════════════════
-   DATA — sample scholars (fictional) + OpenAlex live
+   DATA — random Harvard GSD + MIT courses (data/courses.json, built by scripts/build_courses.py)
    ════════════════════════════════════════════════════════════ */
-// Default deck: Harvard + MIT courses from 2025 on, taken from the Example record (chloeverse/data.js).
-const COURSE_LINKS = {
-  'ADV9672':   'https://www.gsd.harvard.edu/course/proseminar-in-mediums-on-making-culture-technology-and-art-fall-2025',
-  'MAS.834':   'https://www.media.mit.edu/courses/MAS834-2025',
-  'VIS2415':   'https://www.gsd.harvard.edu/course/paper-or-plastic-reinventing-shelf-life-in-the-supermarket-landscape-fall-2025',
-  'MAS.664-I': 'https://www.media.mit.edu/courses/designing-ai-for-human-flourishing-2025/',
-  'SCI6487':   'https://www.gsd.harvard.edu/course/digital-production-design-materials-fabrication-fall-2025/',
-  'SCI6486':   'https://www.gsd.harvard.edu/course/biofabrication-spring-2025/',
-  'VIS2478':   'https://www.gsd.harvard.edu/course/intangible-design-organizations-spring-2026/',
-  'VIS2486':   'https://www.gsd.harvard.edu/course/depths-of-the-cloud-architecture-and-data-ecologies-in-the-ai-era-spring-2026/',
-  'MAS.453':   'https://6mobile.github.io/',
-  'MAS.664-II':'https://aiforimpact.github.io/spring.html',
-};
-function courseDeck(){
-  return (window.CHLOEVERSE_RAW||[])
-    .filter(c=>c.yr>=2025 && /harvard|mit/i.test(c.aff) && DK.some(k=>c[k]))
-    .sort((a,b)=>b.yr-a.yr || a.code.localeCompare(b.code))
-    .map(c=>{
-      const w=zero(); DK.forEach(k=>w[k]=c[k]?1:0);
-      return {id:'c_'+c.code, name:c.name, code:c.code, inst:c.aff, course:true, team:!!c.team,
-        year:c.yr, years: c.yr2&&c.yr2!==c.yr ? `${c.yr}–${String(c.yr2).slice(2)}` : `${c.yr}`,
-        link: COURSE_LINKS[c.code] || '', tags: DK.filter(k=>c[k]),
-        profile: buildProfile([{year:c.yr, w:norm(w)}])};
-    });
+let POOL = [];
+function toCard(c){
+  const w=zero(); c.tags.forEach(k=>w[k]=1);
+  const termYear = Math.min(NOW, +((c.term.match(/\d{4}/)||[NOW])[0]));
+  return {id:'c_'+(c.code||c.link), name:c.name, code:c.code, course:true, school:c.school,
+    kicker: c.code || [c.dept, c.type].filter(Boolean).join(' · '), inst:`${c.school} · ${c.term}`,
+    desc:c.desc, link:c.link, tags:c.tags, year:termYear, profile: buildProfile([{year:termYear, w:norm(w)}])};
 }
+function shuffle(a){ for (let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
 
 // YOU = the Example record (Chloeverse data): each course/project is one "work" tagged with its disciplines.
 const ME = {id:'me', name:'Example', inst:'Example', me:true,
@@ -295,43 +247,6 @@ function relate(p){
   return {overlap: dot/(na*nb||1), brings: brings.v>0.05 ? brings.k : null};
 }
 
-const OA = 'https://api.openalex.org';
-let apiKey = '';
-try { apiKey = localStorage.getItem('sv_key') || ''; } catch(e){}
-async function oa(path){
-  const sep = path.includes('?') ? '&' : '?';
-  const r = await fetch(OA + path + (apiKey ? `${sep}api_key=${encodeURIComponent(apiKey)}` : ''));
-  if (!r.ok) throw new Error(`OpenAlex ${r.status}`);
-  return r.json();
-}
-const shortId = u => (u||'').split('/').pop();
-
-async function findAuthors(q, mode){
-  if (mode==='name'){
-    const d = await oa(`/authors?search=${encodeURIComponent(q)}&per_page=${P.deckSize}`);
-    return d.results.map(a=>({id:shortId(a.id), name:a.display_name,
-      inst:(a.last_known_institutions||[])[0]?.display_name || ''}));
-  }
-  // topic: authors who publish most often on the topic in the recent decade
-  const d = await oa(`/works?search=${encodeURIComponent(q)}&per_page=200&filter=from_publication_date:${NOW-P.yearsShown}-01-01&select=authorships`);
-  const seen = new Map();
-  d.results.forEach(w=>(w.authorships||[]).forEach(au=>{
-    const id = shortId(au.author?.id); if (!id) return;
-    const e = seen.get(id) || {id, name:au.author.display_name, inst:au.institutions?.[0]?.display_name||'', c:0};
-    e.c++; seen.set(id,e);
-  }));
-  return [...seen.values()].sort((a,b)=>b.c-a.c).slice(0,P.deckSize);
-}
-async function loadProfile(a){
-  const d = await oa(`/works?filter=author.id:${a.id}&per_page=200&sort=publication_year:desc&select=publication_year,topics`);
-  const works = [];
-  d.results.forEach(w=>{
-    if (!w.topics?.length) return;
-    const v = zero(); w.topics.forEach(t=>v[mapTopic(t)] += (t.score||1));
-    works.push({year:w.publication_year, w:norm(v)});
-  });
-  return works.length >= P.minWorks ? buildProfile(works) : null;
-}
 
 /* ════════════════════════════════════════════════════════════
    STATE
@@ -339,39 +254,15 @@ async function loadProfile(a){
 let deck = [], idx = 0, history = [], saved = [];
 try { saved = JSON.parse(localStorage.getItem('sv_saved')||'[]').filter(x=>!x.sample); } catch(e){ saved=[]; }
 const persist = () => { try { localStorage.setItem('sv_saved', JSON.stringify(saved)); } catch(e){} };
-const status = t => document.getElementById('status').textContent = t;
 
-async function ensureProfiles(){
-  // prefetch the next 3 live cards; drop ones with too little data
-  for (let i=idx; i<Math.min(deck.length, idx+3); i++){
-    const a = deck[i];
-    if (a.profile || a.loading) continue;
-    a.loading = true;
-    loadProfile(a).then(p=>{
-      a.loading = false;
-      if (p) a.profile = p; else deck.splice(deck.indexOf(a),1);
-      drawStack(); ensureProfiles();
-    }).catch(err=>{ a.loading=false; status(err.message); });
+async function newDeck(){
+  if (!POOL.length){
+    drawStack(true);
+    try { POOL = (await (await fetch('data/courses.json')).json()).courses; }
+    catch(e){ stack.innerHTML = '<div id="empty">Could not load courses.</div>'; return; }
   }
-}
-
-async function loadDeck(){
-  const q = document.getElementById('q').value.trim();
-  const mode = document.getElementById('mode').value;
-  if (!apiKey || !q){
-    deck = courseDeck().filter(a=>!saved.some(s=>s.id===a.id)); idx = 0; history = [];
-    status(apiKey ? 'Harvard + MIT courses, 2025–' : 'Harvard + MIT courses, 2025– · add an OpenAlex key to swipe live scholars');
-    drawStack(); return;
-  }
-  status('loading…'); deck=[]; idx=0; history=[]; drawStack(true);
-  try {
-    deck = (await findAuthors(q, mode)).filter(a=>!saved.some(s=>s.id===a.id));
-    status(`${deck.length} scholars · ${mode} “${q}” · OpenAlex`);
-    drawStack(); ensureProfiles();
-  } catch(err){
-    status(`${err.message} — showing samples`);
-    deck = courseDeck(); drawStack();
-  }
+  deck = shuffle(POOL.map(toCard).filter(a=>!saved.some(s=>s.id===a.id))).slice(0, P.deckSize);
+  idx = 0; history = []; drawStack();
 }
 
 /* ════════════════════════════════════════════════════════════
@@ -390,8 +281,8 @@ function cardEl(a){
   el.innerHTML = `
     <div class="stamp pass">PASS</div><div class="stamp save">SAVE</div>
     ${a.course
-      ? `<div class="k" style="margin-bottom:2px">${esc(a.code)}</div><div class="c-name">${esc(a.name)}</div>
-         <div class="t-row">${esc(a.inst)} &nbsp;·&nbsp; ${a.years} &nbsp;·&nbsp; ${a.team?'Teamwork':'Individual'}</div>`
+      ? `<div class="k" style="margin-bottom:2px">${esc(a.kicker)}</div><div class="c-name">${esc(a.name)}</div>
+         <div class="t-row">${esc(a.inst)}</div>${a.desc?`<div class="t-row desc">${esc(a.desc)}</div>`:''}`
       : `<div class="c-name">${esc(a.name)}</div><div class="t-row">${esc(a.inst||'—')} &nbsp;·&nbsp; ${p.n} works</div>`}
     <hr class="t-div">
     <svg class="radial" viewBox="0 0 320 250" preserveAspectRatio="xMidYMid meet"></svg>
@@ -525,7 +416,7 @@ function drawStack(loading){
   if (loading){ stack.innerHTML = '<div class="card"><div class="spin"></div></div>'; return; }
   const rest = deck.slice(idx, idx+3);
   if (!rest.length){
-    stack.innerHTML = `<div id="empty">End of deck.<br><span class="k">Try another topic, or open Saved</span></div>`; return;
+    stack.innerHTML = `<div id="empty">End of deck.<br><span class="k">Shuffle for 50 more, or open Saved</span></div>`; return;
   }
   rest.slice().reverse().forEach((a,ri)=>{
     const depth = rest.length-1-ri;
@@ -567,11 +458,11 @@ function commit(dir, el, dy=0){
   el.style.transform = `translate(${(dir==='save'?1:-1)*window.innerWidth}px,${dy*0.35+40}px) rotate(${dir==='save'?28:-28}deg)`;
   el.style.opacity = 0;
   if (dir==='save' && !saved.some(x=>x.id===a.id)){
-    saved.push({id:a.id, name:a.code||a.name, inst:a.inst, profile:a.profile}); persist();
+    saved.push({id:a.id, name:a.code||a.name, inst:a.inst, course:true, link:a.link, profile:a.profile}); persist();
   }
   history.push({a, dir}); idx++;
   updateTabs();
-  setTimeout(()=>{ drawStack(); ensureProfiles(); }, 260);
+  setTimeout(drawStack, 260);
 }
 function undo(){
   const h = history.pop(); if (!h) return;
@@ -583,7 +474,7 @@ document.getElementById('btn-save').onclick = ()=>commit('save');
 document.getElementById('btn-pass').onclick = ()=>commit('pass');
 document.getElementById('btn-undo').onclick = undo;
 document.addEventListener('keydown', e=>{
-  if (e.target.tagName==='INPUT') { if (e.key==='Enter') loadDeck(); return; }
+  if (e.target.tagName==='INPUT') return;
   if (view!=='deck') { if (e.key==='Escape') resetHl && resetHl(); return; }
   if (e.key==='ArrowRight') commit('save');
   if (e.key==='ArrowLeft') commit('pass');
@@ -601,7 +492,6 @@ function setView(v){
   document.getElementById('saved-view').style.display = v==='saved'?'block':'none';
   document.getElementById('me-view').style.display = v==='me'?'block':'none';
   document.getElementById('tab-me').classList.toggle('on', v==='me');
-  document.getElementById('status').style.display = v==='me'?'none':'';
   const fr = document.getElementById('cv-frame'); if (v==='me' && !fr.src) fr.src = fr.dataset.src;
   document.getElementById('tab-deck').classList.toggle('on', v==='deck');
   document.getElementById('tab-saved').classList.toggle('on', v==='saved');
@@ -728,21 +618,18 @@ function tip(e, name, body){
 }
 function hideTip(){ document.getElementById('tooltip').classList.remove('visible'); }
 function nodeTip(e,d){
-  if (d.type==='label') return tip(e, d.label, `<div class="t-row"><span class="t-tag">${d.count}</span> saved scholars leaning here</div>`);
+  if (d.type==='label') return tip(e, d.label, `<div class="t-row"><span class="t-tag">${d.count}</span> saved items here</div>`);
   const p=d.s.profile, top=p.ranked.filter(k=>p.recent[k]>0.08).slice(0,3);
-  tip(e, d.s.name, `<hr class="t-div"><div class="t-row">${esc(d.s.inst||'—')} · ${p.n} works</div>
+  tip(e, d.s.name, `<hr class="t-div"><div class="t-row">${esc(d.s.inst||'—')}${d.s.course||d.s.me?'':` · ${p.n} works`}</div>
     <div class="t-row" style="margin-top:3px">${top.map(k=>`<span class="t-tag">${DISCS.find(x=>x.key===k).label}</span> ${pct(p.recent[k])}`).join(' · ')}</div>
     ${p.drift?`<div class="t-row" style="color:var(--red)">↗ moving toward ${DISCS.find(x=>x.key===p.drift.k).label}</div>`:''}`);
 }
 
 /* ── wiring ── */
-const keyIn = document.getElementById('key');
-keyIn.value = apiKey;
-keyIn.addEventListener('change', ()=>{ apiKey = keyIn.value.trim(); try{ localStorage.setItem('sv_key', apiKey); }catch(e){} });
-document.getElementById('go').onclick = loadDeck;
+document.getElementById('shuffle').onclick = ()=>{ setView('deck'); newDeck(); };
 addEventListener('resize', ()=>{ if (view==='saved') renderSaved(); });
 updateTabs();
-loadDeck();
+newDeck();
 </script>
 </body>
 </html>
