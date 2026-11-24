@@ -2,7 +2,7 @@
 
 **Live:** https://interdisciplinary-pathway.vercel.app
 
-Leanings is a swipe tool for interdisciplinary people. Each card is a course, drawn at random from current Harvard GSD and MIT offerings. You swipe right to save it and left to pass. Each card shows two things: a **knowledge diagram** of where the subject leans across 8 disciplines, and a **heat map** over the years.
+Interdisciplinary Pathway is a swipe tool for interdisciplinary people. Each card is a course, drawn at random from current Harvard GSD and MIT offerings. You swipe right to save it and left to pass. Each card shows two things: a **knowledge diagram** of where the subject leans across 8 disciplines, and a **heat map** over the years.
 
 It is built on top of [Chloeverse](https://chloeni.studio/fun/chloeverse/), a knowledge graph of courses and projects, which is used here as the **Example** "you" profile. Every card marks where you sit (red ●), says how much the subject overlaps with you, and names what it brings that you don't. The **Example** tab shows the original graph.
 
