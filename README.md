@@ -1,6 +1,6 @@
-# Leanings
+# Interdisciplinary Pathway
 
-**Live:** https://leanings-three.vercel.app
+**Live:** https://interdisciplinary-pathway.vercel.app
 
 Leanings is a swipe tool for interdisciplinary people. Each card is a course, drawn at random from current Harvard GSD and MIT offerings. You swipe right to save it and left to pass. Each card shows two things: a **knowledge diagram** of where the subject leans across 8 disciplines, and a **heat map** over the years.
 
