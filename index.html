@@ -121,7 +121,7 @@
                 padding:28px 26px 26px; text-align:center; touch-action:none; user-select:none; cursor:grab;
                 transition:transform .35s cubic-bezier(.2,.8,.2,1); }
   #intro-card.dragging { transition:none; cursor:grabbing; }
-  #intro-card h1 { font-size:21px; font-weight:700; line-height:1.3; margin:10px 0 12px; }
+  #intro-card h1 { font-size:20px; font-weight:700; line-height:1.4; margin:12px 0 30px; }
   #intro-card p { font-size:12px; font-weight:300; color:var(--mute); line-height:1.75; margin-bottom:8px; }
   #intro-card .keys { font-size:8.5px; letter-spacing:0.18em; text-transform:uppercase; color:var(--faint); margin:14px 0 26px; }
   #intro-card .act { margin:0 auto; display:block; }
@@ -157,18 +157,9 @@
 
 <div id="intro">
   <div id="intro-card">
-    <svg width="64" height="40" viewBox="0 0 64 40" aria-hidden="true">
-      <line x1="16" y1="20" x2="48" y2="20" stroke="#555" stroke-width="0.6" stroke-dasharray="4,2,1,2"/>
-      <circle cx="16" cy="20" r="11" fill="#e8e6e1" stroke="#1a1a18" stroke-width="1.3"/><circle cx="16" cy="20" r="15" fill="none" stroke="#888" stroke-dasharray="3,2"/>
-      <circle cx="48" cy="20" r="7" fill="#fff" stroke="#1a1a18" stroke-width="0.9"/><circle cx="34" cy="20" r="2" fill="#c0392b"/>
-    </svg>
     <div class="k">Leanings</div>
-    <h1>Where is your work leaning?</h1>
-    <p>Swipe through 50 courses from Harvard and MIT. Keep the ones that pull at you and let the rest go.</p>
-    <p>Each one you keep joins your academic experience, and together they map out an interdisciplinary path you design yourself.</p>
-    <div class="keys">→ keep &nbsp;·&nbsp; ← pass &nbsp;·&nbsp; ⌫ undo</div>
+    <h1>Enter or swipe to keep your academic experience, and DIY your interdisciplinary path.</h1>
     <button class="act" id="intro-enter">ENTER</button>
-    <div class="or">or swipe this card</div>
   </div>
 </div>
 
