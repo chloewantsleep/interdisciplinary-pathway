@@ -1,5 +1,7 @@
 # Leanings
 
+**Live:** https://leanings-three.vercel.app
+
 Leanings is a swipe tool for interdisciplinary people. Each card is a scholar. You swipe right to save them and left to pass. Each card shows two things: a **knowledge diagram** of where the scholar's research leans across 8 disciplines, and a **heat map** of how that mix has shifted year by year.
 
 It is built on top of [Chloeverse](https://chloeni.studio/fun/chloeverse/), my own knowledge graph of courses and projects. Chloeverse acts as the **"you"** profile: every card marks where you sit (red ●), says how much the scholar overlaps with you, and names what they bring that you don't. The **Chloeverse** tab shows the original graph.
