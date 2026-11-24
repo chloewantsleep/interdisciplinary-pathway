@@ -116,6 +116,8 @@
   #me-view { position:absolute; inset:0; display:none; padding-top:58px; }
   #cv-frame { width:100%; height:100%; border:none; display:block; }
   .you { color:var(--red); font-weight:700; }
+  .clink { float:right; color:var(--ink); font-weight:700; font-size:10px; text-decoration:none; border-bottom:1px solid var(--ink); }
+  .clink:hover { color:var(--red); border-color:var(--red); }
   #status { position:fixed; left:20px; bottom:20px; font-size:8.5px; letter-spacing:0.18em; text-transform:uppercase; color:var(--faint); z-index:150; max-width:60vw; }
 
   @media (max-width:640px) {
@@ -148,7 +150,7 @@
   <div class="tabs">
     <button class="f-btn on" id="tab-deck">Deck</button>
     <button class="f-btn" id="tab-saved">Saved (0)</button>
-    <button class="f-btn" id="tab-me">Chloeverse</button>
+    <button class="f-btn" id="tab-me">Example</button>
   </div>
 </div>
 
@@ -168,7 +170,7 @@
   <div id="saved-empty">Nothing saved yet — swipe right on a scholar.</div>
 </div>
 
-<div id="me-view"><iframe id="cv-frame" title="Chloeverse knowledge graph" data-src="chloeverse/index.html"></iframe></div>
+<div id="me-view"><iframe id="cv-frame" title="Example knowledge graph" data-src="chloeverse/index.html"></iframe></div>
 
 <div id="tooltip"><div class="t-name" id="tt-name"></div><div id="tt-body"></div></div>
 <div id="status"></div>
@@ -254,36 +256,34 @@ function buildProfile(works){
 /* ════════════════════════════════════════════════════════════
    DATA — sample scholars (fictional) + OpenAlex live
    ════════════════════════════════════════════════════════════ */
-function rng(seed){ return ()=>{ seed=(seed*1664525+1013904223)%4294967296; return seed/4294967296; }; }
-// each sample: from-mix → to-mix over the decade, so the drift is visible
-const SAMPLES = [
-  ['A. Verhoeven','Sample Institute of Design', {arch:5,design:3,eng:2}, {design:4,cs:4,arch:2}],
-  ['R. Okafor','Sample University', {soc:5,hum:3}, {soc:3,design:3,cs:3}],
-  ['L. Marchetti','Sample School of Art', {art:6,hum:3}, {art:3,sci:3,eng:2}],
-  ['K. Tanaka-Hale','Sample Media Lab', {cs:6,eng:3}, {design:4,cs:3,soc:2}],
-  ['S. Ibarra','Sample Polytechnic', {sci:6,eng:2}, {sci:3,arch:3,design:2}],
-  ['J. Lindqvist','Sample College', {hum:6,art:2}, {hum:3,cs:4}],
-  ['M. Chowdhury','Sample Institute of Technology', {eng:5,sci:3}, {eng:3,design:3,art:2}],
-  ['E. Delacroix-Ng','Sample Graduate School', {arch:4,soc:4}, {arch:2,soc:2,cs:2,hum:2}],
-];
-function sampleDeck(){
-  return SAMPLES.map(([name,inst,a,b],i)=>{
-    const r = rng(1000+i*77), works=[];
-    for (let y=NOW-P.yearsShown+1; y<=NOW; y++){
-      const t = (y-(NOW-P.yearsShown+1))/(P.yearsShown-1);
-      const n = 1 + Math.floor(r()*5);
-      for (let j=0;j<n;j++){
-        const w=zero();
-        DK.forEach(k=>w[k] = Math.max(0,(a[k]||0)*(1-t)+(b[k]||0)*t + (r()-0.6)*2));
-        works.push({year:y, w:norm(w)});
-      }
-    }
-    return {id:'s'+i, name, inst, sample:true, profile:buildProfile(works)};
-  });
+// Default deck: Harvard + MIT courses from 2025 on, taken from the Example record (chloeverse/data.js).
+const COURSE_LINKS = {
+  'ADV9672':   'https://www.gsd.harvard.edu/course/proseminar-in-mediums-on-making-culture-technology-and-art-fall-2025',
+  'MAS.834':   'https://www.media.mit.edu/courses/MAS834-2025',
+  'VIS2415':   'https://www.gsd.harvard.edu/course/paper-or-plastic-reinventing-shelf-life-in-the-supermarket-landscape-fall-2025',
+  'MAS.664-I': 'https://www.media.mit.edu/courses/designing-ai-for-human-flourishing-2025/',
+  'SCI6487':   'https://www.gsd.harvard.edu/course/digital-production-design-materials-fabrication-fall-2025/',
+  'SCI6486':   'https://www.gsd.harvard.edu/course/biofabrication-spring-2025/',
+  'VIS2478':   'https://www.gsd.harvard.edu/course/intangible-design-organizations-spring-2026/',
+  'VIS2486':   'https://www.gsd.harvard.edu/course/depths-of-the-cloud-architecture-and-data-ecologies-in-the-ai-era-spring-2026/',
+  'MAS.453':   'https://6mobile.github.io/',
+  'MAS.664-II':'https://aiforimpact.github.io/spring.html',
+};
+function courseDeck(){
+  return (window.CHLOEVERSE_RAW||[])
+    .filter(c=>c.yr>=2025 && /harvard|mit/i.test(c.aff) && DK.some(k=>c[k]))
+    .sort((a,b)=>b.yr-a.yr || a.code.localeCompare(b.code))
+    .map(c=>{
+      const w=zero(); DK.forEach(k=>w[k]=c[k]?1:0);
+      return {id:'c_'+c.code, name:c.name, code:c.code, inst:c.aff, course:true, team:!!c.team,
+        year:c.yr, years: c.yr2&&c.yr2!==c.yr ? `${c.yr}–${String(c.yr2).slice(2)}` : `${c.yr}`,
+        link: COURSE_LINKS[c.code] || '', tags: DK.filter(k=>c[k]),
+        profile: buildProfile([{year:c.yr, w:norm(w)}])};
+    });
 }
 
-// YOU = Chloe's own record from Chloeverse: each course/project is one "work" tagged with its disciplines.
-const ME = {id:'me', name:'Chloe Ni', inst:'Chloeverse', me:true,
+// YOU = the Example record (Chloeverse data): each course/project is one "work" tagged with its disciplines.
+const ME = {id:'me', name:'Example', inst:'Example', me:true,
   profile: buildProfile((window.CHLOEVERSE_RAW||[])
     .filter(c=>DK.some(k=>c[k]))
     .map(c=>{ const w=zero(); DK.forEach(k=>w[k]=c[k]?1:0); return {year:c.yr, w:norm(w)}; }))};
@@ -337,7 +337,7 @@ async function loadProfile(a){
    STATE
    ════════════════════════════════════════════════════════════ */
 let deck = [], idx = 0, history = [], saved = [];
-try { saved = JSON.parse(localStorage.getItem('sv_saved')||'[]'); } catch(e){ saved=[]; }
+try { saved = JSON.parse(localStorage.getItem('sv_saved')||'[]').filter(x=>!x.sample); } catch(e){ saved=[]; }
 const persist = () => { try { localStorage.setItem('sv_saved', JSON.stringify(saved)); } catch(e){} };
 const status = t => document.getElementById('status').textContent = t;
 
@@ -359,8 +359,8 @@ async function loadDeck(){
   const q = document.getElementById('q').value.trim();
   const mode = document.getElementById('mode').value;
   if (!apiKey || !q){
-    deck = sampleDeck(); idx = 0; history = [];
-    status(apiKey ? 'sample scholars' : 'sample scholars — add an OpenAlex key for live data');
+    deck = courseDeck().filter(a=>!saved.some(s=>s.id===a.id)); idx = 0; history = [];
+    status(apiKey ? 'Harvard + MIT courses, 2025–' : 'Harvard + MIT courses, 2025– · add an OpenAlex key to swipe live scholars');
     drawStack(); return;
   }
   status('loading…'); deck=[]; idx=0; history=[]; drawStack(true);
@@ -370,7 +370,7 @@ async function loadDeck(){
     drawStack(); ensureProfiles();
   } catch(err){
     status(`${err.message} — showing samples`);
-    deck = sampleDeck(); drawStack();
+    deck = courseDeck(); drawStack();
   }
 }
 
@@ -378,7 +378,7 @@ async function loadDeck(){
    CARD RENDERING
    ════════════════════════════════════════════════════════════ */
 const heatColor = d3.scaleLinear().domain([0,1]).range(['#f4f3f0','#1a1a18']).interpolate(d3.interpolateLab);
-const initials = n => n.split(/[\s.-]+/).filter(Boolean).map(s=>s[0]).slice(0,2).join('').toUpperCase();
+const initials = n => n.split(/[^A-Za-z0-9]+/).filter(w=>w && !/^(of|the|for|and|or|on|in)$/i.test(w)).map(s=>s[0]).slice(0,2).join('').toUpperCase();
 const pct = v => Math.round(v*100)+'%';
 
 function cardEl(a){
@@ -389,18 +389,21 @@ function cardEl(a){
   const top = p.ranked.filter(k=>p.recent[k]>0.08).slice(0,3);
   el.innerHTML = `
     <div class="stamp pass">PASS</div><div class="stamp save">SAVE</div>
-    <div class="c-name">${esc(a.name)}${a.sample?'<span class="sample">SAMPLE</span>':''}</div>
-    <div class="t-row">${esc(a.inst||'—')} &nbsp;·&nbsp; ${p.n} works</div>
+    ${a.course
+      ? `<div class="k" style="margin-bottom:2px">${esc(a.code)}</div><div class="c-name">${esc(a.name)}</div>
+         <div class="t-row">${esc(a.inst)} &nbsp;·&nbsp; ${a.years} &nbsp;·&nbsp; ${a.team?'Teamwork':'Individual'}</div>`
+      : `<div class="c-name">${esc(a.name)}</div><div class="t-row">${esc(a.inst||'—')} &nbsp;·&nbsp; ${p.n} works</div>`}
     <hr class="t-div">
     <svg class="radial" viewBox="0 0 320 250" preserveAspectRatio="xMidYMid meet"></svg>
-    <div class="lean"><span class="k">Leaning now</span>
+    <div class="lean"><span class="k">${a.course?'Disciplines':'Leaning now'}</span>
       ${top.map((k,i)=>i===0?`<b>${lab(k).label.toUpperCase()}</b>`:`<span>${lab(k).label}</span>`).join('<span style="color:#bbb">·</span>')}
       ${p.drift?`<span class="drift">↗ ${lab(p.drift.k).short} +${pct(p.drift.v)}</span>`:''}
     </div>
     <svg class="heat" viewBox="0 0 320 112"></svg>
-    <div class="t-row c-foot">${(()=>{ const r=relate(p); return `<span class="you">● you</span> overlap <span class="t-tag">${pct(r.overlap)}</span>${r.brings?` · brings <span class="t-tag">${lab(r.brings).label}</span>`:''}`; })()}</div>`;
+    <div class="t-row c-foot">${(()=>{ const r=relate(p); return `<span class="you">● you</span> overlap <span class="t-tag">${pct(r.overlap)}</span>${r.brings?` · brings <span class="t-tag">${lab(r.brings).label}</span>`:''}`; })()}${a.link?`<a class="clink" href="${esc(a.link)}" target="_blank" rel="noopener">course page ↗</a>`:''}</div>`;
   drawRadial(el.querySelector('.radial'), p, a.name);
-  drawHeat(el.querySelector('.heat'), p);
+  drawHeat(el.querySelector('.heat'), a.course ? ME.profile : p, a.course ? {year:a.year, keys:a.tags} : null);
+  const cl = el.querySelector('.clink'); if (cl) cl.addEventListener('pointerdown', e=>e.stopPropagation());
   return el;
 }
 const esc = s => String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -479,13 +482,15 @@ function drawRadial(svgEl, p, name){
 }
 
 // heat map: disciplines × years
-function drawHeat(svgEl, p){
+// mark = {year, keys}: on a course card the heat map shows the Example record over time,
+// with the course's year × disciplines framed in red — where this course sits in your path.
+function drawHeat(svgEl, p, mark){
   const svg = d3.select(svgEl), L=50, T=2, W=320-L-2, rowH=11.5;
   const years = Object.keys(p.byYear).map(Number);
   const cw = W/years.length, cut = NOW-P.recentYears+1;
   // "now" window bracket
   const nx = L + (cut-years[0])*cw;
-  svg.append('rect').attr('x',nx-0.5).attr('y',T-1.5).attr('width',W-(nx-L)+1).attr('height',rowH*DISCS.length+2)
+  if (!mark) svg.append('rect').attr('x',nx-0.5).attr('y',T-1.5).attr('width',W-(nx-L)+1).attr('height',rowH*DISCS.length+2)
     .attr('fill','none').attr('stroke','var(--red)').attr('stroke-width',0.8);
   DISCS.forEach((d,ri)=>{
     svg.append('text').attr('x',L-6).attr('y',T+ri*rowH+rowH/2).attr('dy','0.35em').attr('text-anchor','end')
@@ -503,6 +508,12 @@ function drawHeat(svgEl, p){
   years.forEach((y,ci)=>{ if (ci%2===(years.length-1)%2 || years.length<=6)
     svg.append('text').attr('x',L+ci*cw+cw/2).attr('y',T+rowH*DISCS.length+10).attr('text-anchor','middle')
       .attr('font-size',6.5).attr('font-weight',300).attr('fill','#999').text(String(y).slice(2).padStart(3,"'")); });
+  if (mark){
+    const ci = years.indexOf(mark.year);
+    if (ci>=0) DISCS.forEach((d,ri)=>{ if (mark.keys.includes(d.key))
+      svg.append('rect').attr('x',L+ci*cw-0.5).attr('y',T+ri*rowH-0.5).attr('width',cw+1).attr('height',rowH+1)
+        .attr('fill','none').attr('stroke','var(--red)').attr('stroke-width',1.1).attr('pointer-events','none'); });
+  }
 }
 
 /* ════════════════════════════════════════════════════════════
@@ -556,7 +567,7 @@ function commit(dir, el, dy=0){
   el.style.transform = `translate(${(dir==='save'?1:-1)*window.innerWidth}px,${dy*0.35+40}px) rotate(${dir==='save'?28:-28}deg)`;
   el.style.opacity = 0;
   if (dir==='save' && !saved.some(x=>x.id===a.id)){
-    saved.push({id:a.id, name:a.name, inst:a.inst, sample:!!a.sample, profile:a.profile}); persist();
+    saved.push({id:a.id, name:a.code||a.name, inst:a.inst, profile:a.profile}); persist();
   }
   history.push({a, dir}); idx++;
   updateTabs();
@@ -671,7 +682,7 @@ function renderSaved(){
   crs.append('circle').attr('class','course-ring').attr('r',d=>d.r);
   crs.append('text').attr('class','c-txt').attr('text-anchor','middle').attr('dy','0.35em')
     .attr('font-size',d=>Math.max(8,Math.min(11,d.r*0.34))).attr('font-weight',700).attr('fill','#1a1a18')
-    .attr('letter-spacing','0.04em').attr('pointer-events','none').text(d=>initials(d.s.name));
+    .attr('letter-spacing','0.04em').attr('pointer-events','none').text(d=>d.me ? 'YOU' : d.s.name.length<=10 ? d.s.name : initials(d.s.name));
 
   sim.on('tick',()=>{
     linkSel.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y).attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
@@ -691,7 +702,7 @@ function renderSaved(){
 function renderMatrix(){
   const m = document.getElementById('matrix');
   m.innerHTML = `<span class="k">Leaning now · last ${P.recentYears} yrs</span><table><tr><th></th>${DISCS.map(d=>`<th>${d.short.slice(0,3)}</th>`).join('')}<th></th></tr>${
-    [ME, ...saved].map(s=>`<tr data-id="${esc(s.id)}"><td class="n${s.me?' you':''}">${esc(s.me?'You · Chloeverse':s.name)}</td>${
+    [ME, ...saved].map(s=>`<tr data-id="${esc(s.id)}"><td class="n${s.me?' you':''}">${esc(s.me?'You · Example':s.name)}</td>${
       DISCS.map(d=>`<td class="c" style="background:${heatColor(Math.min(1,s.profile.recent[d.key]*1.5))}" data-d="${d.key}"></td>`).join('')
     }<td class="n x" title="Remove" style="color:#bbb;padding-left:6px">${s.me?'':'×'}</td></tr>`).join('')}</table>`;
   m.querySelectorAll('tr[data-id]').forEach(tr=>{
