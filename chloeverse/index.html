@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chloeverse Knowledge Graph</title>
+<link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#fff; font-family:'Lato',sans-serif; overflow:hidden; width:100vw; height:100vh; }
+  svg { width:100%; height:100%; cursor:crosshair; display:block; }
+
+  .link { fill:none; transition:opacity 0.2s; }
+  .ll-arch   { stroke:#2a2a2a; stroke-width:0.8; }
+  .ll-design { stroke:#555;    stroke-width:0.6; stroke-dasharray:6,3; }
+  .ll-hum    { stroke:#666;    stroke-width:0.5; stroke-dasharray:3,3; }
+  .ll-soc    { stroke:#888;    stroke-width:0.45; stroke-dasharray:2,3; }
+  .ll-sci    { stroke:#777;    stroke-width:0.5; stroke-dasharray:1,2; }
+  .ll-cs     { stroke:#888;    stroke-width:0.5; stroke-dasharray:4,2,1,2; }
+  .ll-eng    { stroke:#666;    stroke-width:0.6; stroke-dasharray:8,3; }
+  .ll-art    { stroke:#999;    stroke-width:0.4; stroke-dasharray:1.5,3; }
+  .ll-cross  { stroke:#333;    stroke-width:0.9; stroke-dasharray:5,2; }
+  .link.dimmed { opacity:0.05; }
+  .link.active { stroke:#c0392b !important; stroke-width:1.5 !important; stroke-dasharray:none !important; opacity:1 !important; }
+
+  .node-label { cursor:pointer; }
+  .node-label.dimmed { opacity:0.07; }
+  .lbl-outer { fill:none; stroke:#888; stroke-width:1.2; stroke-dasharray:4,3; }
+  .lbl-inner { fill:#e8e6e1; stroke:#1a1a18; stroke-width:2; }
+  .node-label:hover .lbl-inner { fill:#d0cdc7; }
+  .node-label.active .lbl-inner { fill:#1a1a18 !important; stroke:#1a1a18 !important; stroke-width:2.5 !important; }
+  .node-label.active .lbl-outer { stroke:#1a1a18 !important; }
+  .node-label.active .lbl-text  { fill:#fff !important; }
+
+  .node-course { cursor:pointer; }
+  .node-course.dimmed { opacity:0.07; }
+  .course-ring { fill:#fff; stroke:#1a1a18; stroke-width:0.9; }
+  .node-course:hover  .course-ring { fill:#1a1a18; stroke-width:1.4; }
+  .node-course.active .course-ring { fill:#1a1a18 !important; stroke:#1a1a18 !important; stroke-width:1.5 !important; }
+  .node-course.active .c-txt { fill:#fff !important; }
+  .node-course:hover  .c-txt { fill:#fff !important; }
+  .team-ring { fill:none; stroke:#888; stroke-width:1.2; stroke-dasharray:2,2; }
+  .node-course.active .team-ring { stroke:#1a1a18 !important; }
+
+  #tooltip {
+    position:fixed; background:#fff; border:1px solid #1a1a18;
+    padding:11px 15px; font-family:'Lato',sans-serif; font-size:11px;
+    pointer-events:none; opacity:0; transition:opacity 0.12s;
+    z-index:300; max-width:230px; line-height:1.75;
+    box-shadow:3px 3px 0 #e0ddd6;
+  }
+  #tooltip.visible { opacity:1; }
+  .t-name { font-size:13px; font-weight:700; color:#1a1a18; margin-bottom:4px; line-height:1.3; }
+  .t-row  { color:#666; font-weight:300; font-size:10.5px; }
+  .t-tag  { color:#1a1a18; font-weight:700; font-size:10px; }
+  .t-div  { border:none; border-top:0.5px solid #ddd; margin:5px 0; }
+
+  #filter-panel {
+    position:fixed; bottom:20px; right:20px; z-index:200;
+    display:flex; flex-direction:column; align-items:flex-end; gap:5px;
+  }
+  .f-row { display:flex; align-items:center; gap:8px; }
+  .f-row label { font-size:8.5px; letter-spacing:0.18em; text-transform:uppercase; color:#bbb; font-weight:400; white-space:nowrap; }
+  .f-sel {
+    font-family:'Lato',sans-serif; font-size:10px; font-weight:400;
+    color:#1a1a18; background:#fff; border:1px solid #2a2a2a;
+    padding:4px 26px 4px 10px; cursor:pointer;
+    appearance:none; -webkit-appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%231a1a18'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 8px center;
+    letter-spacing:0.04em; min-width:140px;
+  }
+  .f-sel:hover { border-color:#888; }
+
+  #fit-btn {
+    position:fixed; bottom:20px; left:20px; z-index:200;
+    width:20px; height:20px;
+    background:transparent; border:none;
+    border-radius:4px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    transition:border-color 0.15s;
+    padding:0;
+  }
+  #fit-btn:hover { border-color:#bbb; }
+  #fit-btn svg { display:block; }
+
+
+  #fit-btn {
+    position:fixed; bottom:20px; left:20px; z-index:200;
+    width:20px; height:20px;
+    background:transparent; border:none;
+    border-radius:4px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    transition:border-color 0.15s;
+    padding:0;
+  }
+  #fit-btn:hover { border-color:#bbb; }
+  #fit-btn svg { display:block; }
+
+</style>
+</head>
+<body>
+<svg id="graph"></svg>
+
+<div id="tooltip"><div class="t-name" id="tt-name"></div><div id="tt-body"></div></div>
+
+<div id="filter-panel">
+  <div class="f-row"><label>Discipline</label>
+    <select class="f-sel" id="disc-sel">
+      <option value="all">All disciplines</option>
+      <option value="arch">Architecture</option>
+      <option value="design">Design</option>
+      <option value="hum">Humanities</option>
+      <option value="soc">Social Science</option>
+      <option value="sci">Science</option>
+      <option value="cs">CS</option>
+      <option value="eng">Engineering</option>
+      <option value="art">Art</option>
+    </select>
+  </div>
+  <div class="f-row"><label>Year</label>
+    <select class="f-sel" id="year-sel"><option value="all">All years</option></select>
+  </div>
+  <div class="f-row"><label>Affiliation</label>
+    <select class="f-sel" id="aff-sel">
+      <option value="all">All affiliations</option>
+      <option value="Pratt">Pratt</option>
+      <option value="Rottet">Rottet</option>
+      <option value="Harvard">Harvard</option>
+      <option value="MIT">MIT Media Lab</option>
+      <option value="other">Other / Independent</option>
+    </select>
+  </div>
+</div>
+<button id="fit-btn" title="Fit to screen">
+  <svg width="10" height="10" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M1 4.5V1H4.5M8.5 1H12V4.5M12 8.5V12H8.5M4.5 12H1V8.5" stroke="#bbb" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+</button>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="data.js"></script>
+<script>
+const RAW = window.CHLOEVERSE_RAW;
+
+const DISCS = [
+  {key:'arch',  label:'Architecture', lclass:'ll-arch'},
+  {key:'design',label:'Design',       lclass:'ll-design'},
+  {key:'hum',   label:'Humanities',   lclass:'ll-hum'},
+  {key:'soc',   label:'Social Science',lclass:'ll-soc'},
+  {key:'sci',   label:'Science',      lclass:'ll-sci'},
+  {key:'cs',    label:'CS',           lclass:'ll-cs'},
+  {key:'eng',   label:'Engineering',  lclass:'ll-eng'},
+  {key:'art',   label:'Art',          lclass:'ll-art'},
+];
+
+function affGroup(a) {
+  if (!a) return 'other';
+  const l = a.toLowerCase();
+  if (l.includes('pratt'))   return 'Pratt';
+  if (l.includes('rottet'))  return 'Rottet';
+  if (l.includes('harvard')) return 'Harvard';
+  if (l.includes('mit'))     return 'MIT';
+  return 'other';
+}
+
+const years = [...new Set(RAW.map(d=>d.yr))].sort();
+const ySel = document.getElementById('year-sel');
+years.forEach(y => { const o=document.createElement('option'); o.value=y; o.textContent=y; ySel.appendChild(o); });
+
+let discF='all', yearF='all', affF='all', selId=null;
+
+function getFiltered() {
+  return RAW.filter(c => {
+    const dOk = discF==='all' || c[discF]===1;
+    const yOk = yearF==='all' || c.yr==yearF;
+    const aOk = affF==='all' || affGroup(c.aff)===affF;
+    return dOk && yOk && aOk && DISCS.some(d=>c[d.key]);
+  });
+}
+
+const svg = d3.select('#graph');
+const g = svg.append('g');
+
+// shared zoom behaviour — recreated each render so sync works
+let zoomBehavior = d3.zoom().scaleExtent([0.06,8]).on('zoom', e => g.attr('transform', e.transform));
+svg.call(zoomBehavior);
+svg.on('dblclick.zoom', null); // disable d3 default dblclick zoom
+
+function render() {
+  g.selectAll('*').remove();
+  selId = null;
+
+  const W = window.innerWidth, H = window.innerHeight;
+  const courses = getFiltered();
+
+  const discCount = {};
+  DISCS.forEach(d => { discCount[d.key] = courses.filter(c=>c[d.key]).length; });
+
+  const activeCols = discF==='all'
+    ? DISCS.filter(d=>discCount[d.key]>0)
+    : DISCS.filter(d=>d.key===discF && discCount[d.key]>0);
+
+  const maxCnt = Math.max(...activeCols.map(d=>discCount[d.key]), 1);
+  const rScale = d3.scaleSqrt().domain([1,maxCnt]).range([30,65]);
+
+  const nodes=[], links=[];
+
+  activeCols.forEach(lc => {
+    const r = rScale(discCount[lc.key]);
+    nodes.push({id:`lbl_${lc.key}`, type:'label', r, ...lc, count:discCount[lc.key]});
+  });
+
+  courses.forEach(c => {
+    const conn = activeCols.filter(lc=>c[lc.key]);
+    if (!conn.length) return;
+    const uid = c.code+'_'+c.yr;
+    const tot = DISCS.filter(d=>c[d.key]).length;
+    const crsR = 18 + tot * 7;
+    nodes.push({id:uid, type:'course', r:crsR, tot, ...c});
+    conn.forEach(lc => {
+      links.push({source:uid, target:`lbl_${lc.key}`, lclass: tot>=4?'ll-cross':lc.lclass});
+    });
+  });
+
+  // entry count removed
+
+  // seed nodes scattered across a wide ellipse matching 16:9
+  const ellipseA = W * 0.4, ellipseB = H * 0.35;
+  nodes.forEach((n, i) => {
+    const angle = (i / nodes.length) * 2 * Math.PI + Math.random() * 0.5;
+    const jitter = 0.5 + Math.random() * 0.5;
+    n.x = W/2 + ellipseA * Math.cos(angle) * jitter;
+    n.y = H/2 + ellipseB * Math.sin(angle) * jitter;
+  });
+
+  const sim = d3.forceSimulation(nodes)
+    .force('link', d3.forceLink(links).id(d=>d.id)
+      .distance(d=>{
+        const s=typeof d.source==='object'?d.source:nodes.find(n=>n.id===d.source);
+        const t=typeof d.target==='object'?d.target:nodes.find(n=>n.id===d.target);
+        return ((s?.r||20)+(t?.r||20))*2.0+20;
+      }).strength(0.25))
+    .force('charge', d3.forceManyBody().strength(d=>d.type==='label'?-1400:-260))
+    .force('center', d3.forceCenter(W/2, H/2))
+    .force('collision', d3.forceCollide().radius(d=>d.r+18))
+    .force('yGather', d3.forceY(H/2).strength(0.03))
+    .alphaDecay(0.013);
+
+  const linkSel = g.append('g').selectAll('line').data(links).join('line')
+    .attr('class', d=>`link ${d.lclass}`);
+
+  const nodeSel = g.append('g').selectAll('g').data(nodes).join('g')
+    .attr('class', d=>`node node-${d.type}`)
+    .call(d3.drag()
+      .on('start',(e,d)=>{if(!e.active)sim.alphaTarget(0.3).restart();d.fx=d.x;d.fy=d.y;})
+      .on('drag', (e,d)=>{d.fx=e.x;d.fy=e.y;})
+      .on('end',  (e,d)=>{if(!e.active)sim.alphaTarget(0);d.fx=null;d.fy=null;}))
+    .on('click',(e,d)=>{
+      e.stopPropagation();
+      if(selId===d.id){
+        selId=null; reset();
+        if(window._preZoomTransform){
+          svg.transition().duration(500).ease(d3.easeCubicInOut)
+            .call(zoomBehavior.transform, window._preZoomTransform);
+          window._preZoomTransform=null;
+        }
+        return;
+      }
+      selId=d.id; hl(d);
+      window._preZoomTransform = d3.zoomTransform(svg.node());
+      const W=window._graphW||window.innerWidth;
+      const H=window._graphH||window.innerHeight;
+      const targetScale = d.type==='label' ? 1.2 : 1.5;
+      const tx = W/2 - d.x * targetScale;
+      const ty = H/2 - d.y * targetScale;
+      svg.transition().duration(600).ease(d3.easeCubicInOut)
+        .call(zoomBehavior.transform, d3.zoomIdentity.translate(tx,ty).scale(targetScale));
+    })
+    .on('mouseenter',(e,d)=>{ showTip(e,d); if(!selId) hl(d); })
+    .on('mouseleave',()=>{ hideTip(); if(!selId) reset(); });
+
+  // distinguish single vs double click on background
+  let _bgClickTimer=null;
+  svg.on('click',(e)=>{
+    if(e.target!==svg.node() && e.target.closest && e.target.closest('g.node')) return;
+    if(_bgClickTimer){ clearTimeout(_bgClickTimer); _bgClickTimer=null; return; }
+    _bgClickTimer=setTimeout(()=>{
+      _bgClickTimer=null;
+      hideTip();
+      if(selId!==null){
+        selId=null; reset();
+        if(window._preZoomTransform){
+          svg.transition().duration(500).ease(d3.easeCubicInOut)
+            .call(zoomBehavior.transform, window._preZoomTransform);
+          window._preZoomTransform=null;
+        }
+      }
+    }, 250);
+  });
+  svg.on('dblclick',()=>{
+    if(_bgClickTimer){ clearTimeout(_bgClickTimer); _bgClickTimer=null; }
+    selId=null; reset(); hideTip();
+    window._preZoomTransform=null;
+    fitGraph(true);
+  });
+  document.onkeydown=e=>{
+    if(e.key==='Escape'){
+      hideTip();
+      if(selId!==null){
+        selId=null; reset();
+        if(window._preZoomTransform){
+          svg.transition().duration(500).ease(d3.easeCubicInOut)
+            .call(zoomBehavior.transform, window._preZoomTransform);
+          window._preZoomTransform=null;
+        }
+      }
+    }
+  };
+
+  function connSet(d){
+    const s=new Set([d.id]);
+    linkSel.each(l=>{
+      const a=l.source.id||l.source, b=l.target.id||l.target;
+      if(a===d.id||b===d.id){s.add(a);s.add(b);}
+    });
+    return s;
+  }
+  function hl(d){
+    const c=connSet(d);
+    linkSel
+      .classed('dimmed',l=>{const a=l.source.id||l.source,b=l.target.id||l.target;return a!==d.id&&b!==d.id;})
+      .classed('active',l=>{const a=l.source.id||l.source,b=l.target.id||l.target;return a===d.id||b===d.id;});
+    nodeSel.classed('dimmed',n=>!c.has(n.id)).classed('active',n=>n.id===d.id);
+  }
+  function reset(){
+    linkSel.classed('dimmed',false).classed('active',false);
+    nodeSel.classed('dimmed',false).classed('active',false);
+  }
+
+  // ── LABEL NODES ──
+  const lblN = nodeSel.filter(d=>d.type==='label');
+  lblN.append('circle').attr('class','lbl-outer').attr('r',d=>d.r+10);
+  lblN.append('circle').attr('class','lbl-inner').attr('r',d=>d.r);
+  lblN.each(function(d){
+    const el=d3.select(this);
+    for(let i=0;i<16;i++){
+      const a=(i/16)*Math.PI*2, r1=d.r, r2=i%4===0?d.r+7:i%2===0?d.r+5:d.r+3;
+      el.append('line')
+        .attr('x1',Math.cos(a)*r1).attr('y1',Math.sin(a)*r1)
+        .attr('x2',Math.cos(a)*r2).attr('y2',Math.sin(a)*r2)
+        .attr('stroke','#2a2a2a').attr('stroke-width',i%4===0?0.8:0.35)
+        .attr('pointer-events','none');
+    }
+  });
+  lblN.each(function(d){
+    const el=d3.select(this);
+    const words=d.label.split(' ');
+    const fs=d.r>50?11:d.r>38?10:9;
+    const lh=fs+3;
+    const yOff=-(words.length-1)*lh/2;
+    words.forEach((w,i)=>{
+      el.append('text').attr('class','lbl-text')
+        .attr('text-anchor','middle').attr('x',0).attr('y',yOff+i*lh).attr('dy','0.35em')
+        .attr('font-family',"'Lato',sans-serif").attr('font-size',fs+'px').attr('font-weight','700')
+        .attr('fill','#1a1a18').attr('letter-spacing','0.05em').attr('pointer-events','none')
+        .text(w.toUpperCase());
+    });
+    el.append('text').attr('class','lbl-text')
+      .attr('text-anchor','middle').attr('x',0).attr('y',d.r*0.58).attr('dy','0.35em')
+      .attr('font-family',"'Lato',sans-serif").attr('font-size','8px').attr('font-weight','300')
+      .attr('fill','#999').attr('pointer-events','none')
+      .text(`(${d.count})`);
+  });
+
+  // ── COURSE NODES ──
+  const crsN = nodeSel.filter(d=>d.type==='course');
+  crsN.filter(d=>d.team).append('circle').attr('class','team-ring').attr('r',d=>d.r+7);
+  crsN.append('circle').attr('class','course-ring').attr('r',d=>d.r);
+  [[-5,0,5,0],[0,-5,0,5]].forEach(([x1,y1,x2,y2])=>{
+    crsN.append('line').attr('x1',x1).attr('y1',y1).attr('x2',x2).attr('y2',y2)
+      .attr('stroke','#ccc').attr('stroke-width',0.5).attr('pointer-events','none');
+  });
+  crsN.each(function(d){
+    const el=d3.select(this);
+    const fs=Math.max(7,Math.min(11,d.r*0.32));
+    const maxCh=Math.floor(d.r*1.6/(fs*0.62));
+    const code=d.code||'';
+    const display=code.length>maxCh?code.slice(0,maxCh-1)+'…':code;
+    el.append('text').attr('class','c-txt')
+      .attr('text-anchor','middle').attr('dy','0.35em')
+      .attr('font-family',"'Lato',sans-serif")
+      .attr('font-size',fs+'px').attr('font-weight','700')
+      .attr('fill','#1a1a18').attr('letter-spacing','0.04em')
+      .attr('pointer-events','none')
+      .text(display);
+  });
+
+  sim.on('tick',()=>{
+    linkSel.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y)
+           .attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+    nodeSel.attr('transform',d=>`translate(${d.x},${d.y})`);
+  });
+
+  // store nodes ref for fit button
+  window._graphNodes = nodes;
+  window._graphW = W;
+  window._graphH = H;
+
+  // auto-fit once simulation settles — zoom out more on initial load
+  sim.on('end', () => {
+    const pad = 60;
+    const xs=nodes.map(n=>n.x), ys=nodes.map(n=>n.y), rs=nodes.map(n=>n.r||20);
+    const x0=Math.min(...xs.map((x,i)=>x-rs[i]-pad));
+    const x1=Math.max(...xs.map((x,i)=>x+rs[i]+pad));
+    const y0=Math.min(...ys.map((y,i)=>y-rs[i]-pad));
+    const y1=Math.max(...ys.map((y,i)=>y+rs[i]+pad));
+    const gw=x1-x0, gh=y1-y0;
+    const scale = Math.min(W/gw, H/gh, 1) * 0.93;
+    const tx=(W-gw*scale)/2-x0*scale;
+    const ty=(H-gh*scale)/2-y0*scale;
+    const transform=d3.zoomIdentity.translate(tx,ty).scale(scale);
+    svg.transition().duration(900).ease(d3.easeCubicInOut)
+      .call(zoomBehavior.transform, transform);
+  });
+}
+
+function showTip(e,d){
+  const tt=document.getElementById('tooltip');
+  document.getElementById('tt-name').textContent=d.type==='label'?d.label:(d.name||d.code);
+  if(d.type==='label'){
+    document.getElementById('tt-body').innerHTML=
+      `<div class="t-row"><span class="t-tag">${d.count}</span> entries tagged</div>`;
+  } else {
+    const yr=d.yr2&&d.yr2!==d.yr?`${d.yr} – ${d.yr2}`:`${d.yr}`;
+    const tags=DISCS.filter(k=>d[k.key]).map(k=>`<span class="t-tag">${k.label}</span>`).join(' · ');
+    const team=d.team?'<span class="t-tag">Teamwork</span>':'Individual';
+    document.getElementById('tt-body').innerHTML=`
+      <hr class="t-div">
+      <div class="t-row">${yr} &nbsp;·&nbsp; ${d.aff||'—'}</div>
+      ${tags?`<div class="t-row" style="margin-top:3px">${tags}</div>`:''}
+      <div class="t-row" style="margin-top:2px">${team}</div>`;
+  }
+  tt.classList.add('visible');
+  tt.style.left=Math.min(e.clientX+14,window.innerWidth-245)+'px';
+  tt.style.top=Math.min(e.clientY-8,window.innerHeight-150)+'px';
+}
+function hideTip(){ document.getElementById('tooltip').classList.remove('visible'); }
+
+document.getElementById('disc-sel').addEventListener('change',e=>{discF=e.target.value;render();});
+document.getElementById('year-sel').addEventListener('change',e=>{yearF=e.target.value;render();});
+document.getElementById('aff-sel').addEventListener ('change',e=>{affF=e.target.value; render();});
+window.addEventListener('resize',render);
+
+function fitGraph(animated) {
+  const nodes = window._graphNodes;
+  if (!nodes || !nodes.length) return;
+  const W = window._graphW || window.innerWidth;
+  const H = window._graphH || window.innerHeight;
+  const pad = 60;
+  const xs=nodes.map(n=>n.x), ys=nodes.map(n=>n.y), rs=nodes.map(n=>n.r||20);
+  const x0=Math.min(...xs.map((x,i)=>x-rs[i]-pad));
+  const x1=Math.max(...xs.map((x,i)=>x+rs[i]+pad));
+  const y0=Math.min(...ys.map((y,i)=>y-rs[i]-pad));
+  const y1=Math.max(...ys.map((y,i)=>y+rs[i]+pad));
+  const gw=x1-x0, gh=y1-y0;
+  // zoom out a bit more to match the screenshot look
+  const scale = Math.min(W/gw, H/gh, 1) * 0.93;
+  const tx=(W-gw*scale)/2-x0*scale;
+  const ty=(H-gh*scale)/2-y0*scale;
+  const transform=d3.zoomIdentity.translate(tx,ty).scale(scale);
+  if (animated) {
+    svg.transition().duration(900).ease(d3.easeCubicInOut)
+      .call(zoomBehavior.transform, transform);
+  } else {
+    svg.call(zoomBehavior.transform, transform);
+  }
+}
+
+document.getElementById('fit-btn').addEventListener('click', () => fitGraph(true));
+
+render();
+</script>
+
+<style>
+  body.cover-mode .f-row, body.cover-mode .filters, body.cover-mode #disc-sel, body.cover-mode #year-sel, body.cover-mode #aff-sel { display: none !important; }
+  body.cover-mode .filters, body.cover-mode [class*="filter"] { display: none !important; }
+</style>
+<script>
+(function () {
+  var q = new URLSearchParams(location.search);
+  function apply() {
+    var aff = q.get('affiliation');
+    if (aff) { var s = document.getElementById('aff-sel'); if (s) { s.value = aff; s.dispatchEvent(new Event('change', {bubbles:true})); } }
+    if (q.get('cover') === '1') document.body.classList.add('cover-mode');
+  }
+  if (document.readyState === 'complete') setTimeout(apply, 300);
+  else window.addEventListener('load', function(){ setTimeout(apply, 300); });
+})();
+</script>
+
+</body>
+</html>
